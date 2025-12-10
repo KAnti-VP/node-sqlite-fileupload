@@ -1,19 +1,8 @@
 import express from "express";
 import multer from "multer";
-import Database from "better-sqlite3";
+import imgDB from './data/db.js'
 
 const app = express();
-const imgDB = new Database("./data/images.sqlite");
-imgDB
-  .prepare(
-    `
-  CREATE TABLE IF NOT EXISTS images (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      image TEXT,
-      mimetype TEXT
-    )`
-  )
-  .run();
 
 // Middleware
 app.set("view engine", "ejs");
