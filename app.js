@@ -1,63 +1,66 @@
-import express from 'express';
-import multer from 'multer';
-import sqlite3 from 'sqlite3';
-// import path from 'path';
-// import { unlink } from 'fs/promises';
-// import { fileURLToPath } from 'url';
+import express from "express";
+import multer from "multer";
+import Database from "better-sqlite3";
 
 const app = express();
-const dbImg = new sqlite3.Database('./data/images.sqlite');
-// const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// const imageFolder = [__dirname, 'public', 'images'];
+const imgDB = new Database("./data/images.sqlite");
+imgDB
+  .prepare(
+    `
+  CREATE TABLE IF NOT EXISTS images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      image TEXT,
+      mimetype TEXT
+    )`
+  )
+  .run();
 
 // Middleware
-app.set('view engine', 'ejs');
-app.set('views', 'views');
-app.use(express.static('public'));
+app.set("view engine", "ejs");
+app.set("views", "views");
+app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 
 // Multer konfiguration
 const upload = multer({ storage: multer.memoryStorage() });
 
-dbImg.serialize(() => {
-  dbImg.run(`
-    CREATE TABLE IF NOT EXISTS images (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      image TEXT
-    )
-  `);
-});
-
 // Feltöltés kezelése
-app.post('/upload', upload.single('image'), async (req, res) => {
+app.post("/upload", upload.single("image"), async (req, res) => {
   try {
-    const fileBuffer = req.file.buffer; // Fájl adatok memóriából
-    const base64Image = fileBuffer.toString('base64'); // Konvertálás Base64-re
-    dbImg.run('INSERT INTO images (image) VALUES (?)', [base64Image], (err) => {
-      if (err) return res.status(500).send('Server error: POST insert into database' + err);
-      res.redirect('/');
-    });
+    const fileBuffer = req.file.buffer;
+    const base64Image = fileBuffer.toString("base64");
+    imgDB.prepare("INSERT INTO images (image, mimetype) VALUES (?, ?)").run(
+      base64Image,
+      req.file.mimetype
+    );
+    res.redirect("/");
   } catch (error) {
-    res.status(500).send('Upload error');
+    res.status(500).send("Server error " + err);
   }
 });
 
 // Képek megjelenítése
-app.get('/', (req, res) => {
-  dbImg.all('SELECT * FROM images', [], (err, rows) => {
-    if (err) return res.status(500).send('Server error');
-    res.render('index', { images: rows });
-  });
+app.get("/", (req, res) => {
+  try {
+    const images = imgDB.prepare("SELECT * FROM images").all();
+    res.render("index", { images: images });
+  } catch (err) {
+    res.status(500).send("Server error");
+  }
 });
 
 // Kép törlése
-app.post('/delete/:id', (req, res) => {
-  const { id } = req.params;
-  dbImg.run('DELETE FROM images WHERE id = ?', [id], (err) => {
-    if (err) return res.status(500).send('Server error');
-    res.redirect('/');
-  });
+app.post("/delete/:id", (req, res) => {
+  try {
+    const id = +req.params.id;
+    imgDB.prepare("DELETE FROM images WHERE id = ?").run(id);
+    res.redirect("/");
+  } catch (err) {
+    res.status(500).send("Server error");
+  }
 });
 
 // Szerver indítása
-app.listen(3000, () => console.log('Szerver fut a http://localhost:3000 címen'));
+app.listen(3000, () =>
+  console.log("Szerver fut a http://localhost:3000 címen")
+);
