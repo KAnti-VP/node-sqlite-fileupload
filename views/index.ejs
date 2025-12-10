@@ -21,7 +21,7 @@
         <% for (let image of images) { %>
           <article class="card product-item">
             <div class="card__image">
-              <img src="data:image/png;base64,<%= image.image %>" alt="Image" width="200">
+              <img src="data:<%= image.mimetype %>;base64,<%= image.image %>" alt="Image" width="200">
             </div>
             <div class="card__actions row-end">
               <form action="/delete/<%= image.id %>" method="post" style="display:inline;">
